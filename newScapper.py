@@ -2,21 +2,29 @@ import requests
 from bs4 import BeautifulSoup
 import datetime
 import pandas as pd
+import csv
+from time import sleep
 
 NUMBER_OF_DAYS = 30
 countOfNews = 0
 
 def create_dataset_file():
     print("Creating Raw File")
-    file = open('DawnNews.csv', "w+")
-    file.write("Date,Link,Heading,Body\n")
-    file.close()
+    # file = open('DawnNews.csv', "w+")
+    # file.write("Date,Link,Heading,Body\n")
+    # # Open the CSV file for writing
+    with open('RAW_NEWS.csv', 'w+', newline='\n') as csvfile:
+        writer = csv.writer(csvfile)
+
+        # Write the data rows
+        writer.writerow(["DateOfNews", "LinkOfNews", "HeadingOfNews", "BodyOfNews"])
+    csvfile.close()
 
 def save_raw_news_to_dataset(date, link, heading, body):
-    news = str(date) + "," + str(link) + "," + str(heading) + "," + str(body)
-    file = open('DawnNews.csv', "a")
-    file.write(news + "\n")
-    file.close()
+    with open('RAW_NEWS.csv', 'a', newline='\n') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow([date, link, heading, body])
+    csvfile.close()
 
 
 create_dataset_file()
@@ -24,16 +32,25 @@ now = datetime.datetime.now()
 
 for i in range(1,NUMBER_OF_DAYS):
     #calculate the date 30 days before
+    url = ""
     date = now - datetime.timedelta(days= i)
-
+    # https://www.dawn.com/newspaper/national/2022-12-01
+    # https://www.dawn.com/newspaper/business/2022-12-01
+    # https://www.dawn.com/newspaper/sport/2022-12-02
+    dateOfNews = "{0:02d}-{1:02d}-{2:02d}".format(date.year, date.month,date.day)
     #construct the url for scraping
-    url = "https://www.dawn.com/archive/latest-news/{0}-{1}-{2}/".format(date.year,
-                                                            date.month,
-                                                            date.day)
-    print("Archive News URL:", url)
+    # url = "https://www.dawn.com/archive/" + dateOfNews
+    baseURL = "https://www.dawn.com/archive/"
+
+    # baseURL = "https://www.dawn.com/newspaper/national/"
+    url = str(baseURL + dateOfNews)
+    print("Archive News URL: ", url)
+    sleep(10)
     #request the web page
     resp = requests.get(url)
-
+    print("Archive News Response: ", resp)
+    if resp.status_code > 204:
+       print("Archive News URL Not accessible!")
     #parse the page using beautifulsoup
     soup = BeautifulSoup(resp.text, 'html.parser')
 
@@ -55,9 +72,10 @@ for i in range(1,NUMBER_OF_DAYS):
                     news_body = soup.find('div', {'class': 'story__content'})
                     #print the news body
                     dateNews = str(date.strftime("%d/%m/%Y"))
-                    newslink = str(news_url)
+                    newslink = news_url
                     newsheading = str(link.text)
                     newsbody = str(news_body.text)
+                    # newsTopic = str(news_body.title)
 
                     print("-----")
                     print("Date: ", dateNews)
@@ -65,16 +83,10 @@ for i in range(1,NUMBER_OF_DAYS):
                     # print("Heading: " ,newsheading)
                     # print("Body: ", newsbody)
 
-                    # #### 
-                    # # newsbody = ""
-                    # # save_raw_news_to_dataset(dateNews, link, newsheading, newsbody)
-                    # df=pd.DataFrame()
-                    # df['Date']=dateNews
-                    # df.T.to_csv('test.csv',mode='a',index=False,header=False)
+                    save_raw_news_to_dataset(dateNews, link.attrs['href'], newsheading, newsbody)
+                    
                     countOfNews += 1
                     print("News Count: ", countOfNews)
-
-                    
                     
                 except:
                     pass
